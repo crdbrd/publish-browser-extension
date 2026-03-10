@@ -1,5 +1,4 @@
-import { FormData } from 'formdata-node';
-import { fileFromPath } from 'formdata-node/file-from-path';
+import { readFile } from 'node:fs/promises';
 import { fetch } from '../utils/fetch';
 
 export interface CwsApiOptions {
@@ -53,19 +52,19 @@ export class CwsApi {
     const Authorization = await this.getAuthHeader(params.token);
 
     const endpoint = this.uploadEndpoint(params.extensionId);
-    const form = new FormData();
-    form.append('image', await fileFromPath(params.zipFile));
+    const zipBody = await readFile(params.zipFile);
     const res: CwsItemResponse = await fetch(endpoint.href, {
       method: 'PUT',
-      body: form,
+      body: zipBody,
       headers: {
         Authorization,
         'x-goog-api-version': '2',
+        'Content-Type': 'application/zip',
       },
     });
     if (res.uploadState === 'FAILURE') {
       const errors = res.itemError
-        ?.map((e) => `${e.error_code}: ${e.error_detail}`)
+        ?.map(e => `${e.error_code}: ${e.error_detail}`)
         .join('\n');
       throw new Error(`Chrome Web Store upload failed:\n${errors}`);
     }
@@ -104,7 +103,7 @@ export class CwsApi {
     });
     if (res.uploadState === 'FAILURE') {
       const errors = res.itemError
-        ?.map((e) => `${e.error_code}: ${e.error_detail}`)
+        ?.map(e => `${e.error_code}: ${e.error_detail}`)
         .join('\n');
       throw new Error(`Chrome Web Store publish failed:\n${errors}`);
     }
